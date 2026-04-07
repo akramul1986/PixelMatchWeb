@@ -13,6 +13,14 @@ class ImageComparator:
             img_figma = Image.open(figma_stream)
             img_app = Image.open(app_stream)
 
+            # --- ADDED: LIMIT IMAGE SIZE TO SAVE MEMORY ---
+            MAX_SIZE = 1500  # Pixels
+            if img_figma.width > MAX_SIZE or img_figma.height > MAX_SIZE:
+                img_figma.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
+            if img_app.width > MAX_SIZE or img_app.height > MAX_SIZE:
+                img_app.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
+            # ----------------------------------------------
+
             img_figma = ImageOps.exif_transpose(img_figma).convert('RGBA')
             img_app = ImageOps.exif_transpose(img_app).convert('RGBA')
 
