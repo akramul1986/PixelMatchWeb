@@ -1,9 +1,3 @@
-This is a great idea. Adding the Interactive Overlay Slider is the "secret weapon" for testers. When the dimensions don't match (like in your 1125px vs 1177px case), the red diff is messy, but the slider lets you physically see the design "grow" or "shift" in real-time.
-
-I have updated your code to include the Interactive Comparison Slider and a Side-by-Side preview section.
-The Full Updated index.html
-HTML
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,12 +19,30 @@ HTML
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            padding: 40px;
+            padding: 20px 40px 40px 40px; /* Adjusted top padding */
         }
 
         .container {
             max-width: 1000px;
             margin: auto;
+        }
+
+        /* NEW: Top Navigation Bar */
+        .top-nav {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .user-badge {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .header {
@@ -101,7 +113,7 @@ HTML
         .metrics-table th { text-align: left; color: #718096; font-size: 12px; text-transform: uppercase; }
         .metrics-table td { padding: 10px 0; font-size: 16px; font-weight: 600; }
 
-        /* NEW: Slider Styling */
+        /* Slider Styling */
         .slider-section {
             margin-top: 40px;
             text-align: center;
@@ -168,6 +180,13 @@ HTML
 <body>
 
 <div class="container">
+    <div class="top-nav">
+        <div class="user-badge">
+            <span style="color: #718096; font-size: 14px;">👋 {{ session['user_email'] }}</span>
+            <a href="/logout" style="color: var(--danger); text-decoration: none; font-weight: bold; font-size: 14px;">Logout</a>
+        </div>
+    </div>
+
     <div class="header">
         <h1>🔍 UI PixelMatch Verifier</h1>
         <p>Professional QA tool for comparing Figma designs against Developer builds.</p>
