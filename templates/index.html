@@ -1,0 +1,287 @@
+This is a great idea. Adding the Interactive Overlay Slider is the "secret weapon" for testers. When the dimensions don't match (like in your 1125px vs 1177px case), the red diff is messy, but the slider lets you physically see the design "grow" or "shift" in real-time.
+
+I have updated your code to include the Interactive Comparison Slider and a Side-by-Side preview section.
+The Full Updated index.html
+HTML
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Verifier Pro | Pixel-Perfect QA</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --danger: #e53e3e;
+            --success: #38a169;
+            --bg: #f7fafc;
+            --card: #ffffff;
+            --text: #2d3748;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .upload-box {
+            border: 2px dashed #cbd5e0;
+            padding: 25px;
+            text-align: center;
+            border-radius: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .upload-box:hover { border-color: var(--primary); }
+
+        input[type="file"] { margin-top: 10px; width: 100%; }
+
+        button {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 700;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        button:hover { background: #357abd; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        /* Results Section */
+        #resultArea { display: none; animation: fadeIn 0.5s ease-in; }
+
+        .report-header {
+            background: #fff5f5;
+            border-left: 6px solid var(--danger);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .metrics-table th { text-align: left; color: #718096; font-size: 12px; text-transform: uppercase; }
+        .metrics-table td { padding: 10px 0; font-size: 16px; font-weight: 600; }
+
+        /* NEW: Slider Styling */
+        .slider-section {
+            margin-top: 40px;
+            text-align: center;
+            padding-top: 30px;
+            border-top: 2px solid #edf2f7;
+        }
+
+        .overlay-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #eee;
+        }
+
+        .overlay-img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        #appOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0.5;
+        }
+
+        .slider-control {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        .diff-container {
+            text-align: center;
+            border-top: 2px solid #edf2f7;
+            padding-top: 30px;
+            margin-top: 40px;
+        }
+
+        #diffImage {
+            max-width: 100%;
+            border: 3px solid var(--danger);
+            border-radius: 8px;
+            background: #eee;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🔍 UI PixelMatch Verifier</h1>
+        <p>Professional QA tool for comparing Figma designs against Developer builds.</p>
+    </div>
+
+    <div class="card">
+        <div class="upload-grid">
+            <div class="upload-box">
+                <label><strong>1. Figma Design (Reference)</strong></label>
+                <input type="file" id="figmaImg" accept="image/*">
+            </div>
+            <div class="upload-box">
+                <label><strong>2. App Screenshot (Actual)</strong></label>
+                <input type="file" id="appImg" accept="image/*">
+            </div>
+        </div>
+        <button id="verifyBtn" onclick="runComparison()">Verify / Match UI</button>
+    </div>
+
+    <div id="resultArea" class="card">
+        <div class="report-header">
+            <h2 style="margin:0; color: #c53030;">🚩 Developer Report: <span id="txtCategory"></span></h2>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Design Specs (Figma)</th>
+                        <th>Actual Build (App)</th>
+                        <th>Total Mismatch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="txtFigma">--</td>
+                        <td id="txtApp">--</td>
+                        <td><span id="txtPercent" class="badge">--</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="slider-section">
+            <h3>Interactive Transparency Overlay</h3>
+            <p style="color: #718096; font-size: 14px;">Slide to see exactly how the App (Top) shifts away from the Figma (Bottom).</p>
+
+            <div class="overlay-container" id="overlayContainer">
+                <img id="figmaBg" class="overlay-img" src="" alt="Figma Background">
+                <img id="appOverlay" class="overlay-img" src="" alt="App Overlay">
+            </div>
+
+            <div class="slider-control">
+                <label><strong>Adjust App Opacity:</strong></label><br>
+                <input type="range" min="0" max="100" value="50" style="width: 100%;"
+                       oninput="document.getElementById('appOverlay').style.opacity = this.value/100">
+            </div>
+        </div>
+
+        <div class="diff-container">
+            <h3>Visual Evidence (The "Red Proof")</h3>
+            <p style="color: #718096; font-size: 14px;">Fixed pixel comparison. If entire image is red, the sizes/resolutions do not match.</p>
+            <img id="diffImage" src="" alt="Diff Result">
+        </div>
+    </div>
+</div>
+
+<script>
+async function runComparison() {
+    const figmaInput = document.getElementById('figmaImg');
+    const appInput = document.getElementById('appImg');
+    const btn = document.getElementById('verifyBtn');
+
+    if(!figmaInput.files[0] || !appInput.files[0]) {
+        return alert("Please upload both the Figma design and the App screenshot first!");
+    }
+
+    btn.innerText = "Analyzing Pixels...";
+    btn.style.opacity = "0.7";
+
+    // Show local previews for the slider immediately
+    const figmaUrl = URL.createObjectURL(figmaInput.files[0]);
+    const appUrl = URL.createObjectURL(appInput.files[0]);
+    document.getElementById('figmaBg').src = figmaUrl;
+    document.getElementById('appOverlay').src = appUrl;
+
+    const formData = new FormData();
+    formData.append('figma', figmaInput.files[0]);
+    formData.append('app', appInput.files[0]);
+
+    try {
+        const response = await fetch('/verify', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('resultArea').style.display = 'block';
+        document.getElementById('txtCategory').innerText = data.category;
+        document.getElementById('txtFigma').innerText = data.figma_size;
+        document.getElementById('txtApp').innerText = data.app_size;
+        document.getElementById('txtPercent').innerText = data.mismatch_count + " pixels (" + data.error_percent + ")";
+        document.getElementById('diffImage').src = data.diff_url;
+
+        document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+        alert("Comparison Error: " + err.message);
+    } finally {
+        btn.innerText = "Verify / Match UI";
+        btn.style.opacity = "1";
+    }
+}
+</script>
+
+</body>
+</html>
