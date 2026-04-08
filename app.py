@@ -58,6 +58,11 @@ def verify():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/guide')
+def show_guide():
+    # This renders the new guide page you are about to create
+    return render_template('guide.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

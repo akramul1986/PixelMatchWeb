@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Verifier Pro | Team Testing Guide</title>
+    <style>
+        :root {
+            --primary: #18A0FB;
+            --danger: #e53e3e;
+            --bg: #f8fafc;
+            --text: #2d3748;
+            --border: #e2e8f0;
+            --highlight: #fff9db;
+        }
+        body { font-family: 'Inter', sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); padding: 40px; margin: 0; }
+        .guide-container { max-width: 900px; margin: auto; background: white; padding: 50px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+
+        h1 { color: var(--primary); font-size: 28px; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-top: 0; }
+        h2 { margin-top: 40px; color: #2d3748; font-size: 22px; border-left: 5px solid var(--primary); padding-left: 15px; }
+
+        .info-card { background: #f1f9ff; padding: 25px; border-radius: 12px; margin: 20px 0; border: 1px solid #d1e9ff; }
+        .example-box { background: #f7fafc; border: 1px dashed #cbd5e0; padding: 20px; border-radius: 8px; margin: 15px 0; }
+
+        .calculation-area { background: #f0fff4; border: 1px solid #c6f6d5; padding: 20px; border-radius: 10px; margin: 15px 0; }
+        .calculation-area b { color: #2f855a; }
+
+        .tip-badge { display: inline-block; background: var(--highlight); padding: 2px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-bottom: 10px; }
+        .logic-tag { background: #edf2f7; color: #4a5568; padding: 3px 10px; border-radius: 5px; font-size: 11px; text-transform: uppercase; font-weight: bold; float: right; }
+
+        .checklist { list-style: none; padding: 0; }
+        .checklist li { margin-bottom: 20px; padding-left: 45px; position: relative; font-size: 16px; }
+        .checklist li::before { content: "✔"; position: absolute; left: 0; width: 30px; height: 30px; background: var(--success, #38a169); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .back-link { display: inline-block; margin-top: 50px; color: var(--primary); text-decoration: none; font-weight: bold; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="guide-container">
+    <h1>📘 UI Testing Guide for New Team Members</h1>
+    <p>Welcome to the team! This guide will help you understand how to use our "Digital Ruler" to find UI bugs quickly and accurately.</p>
+
+    <h2>1. The "Digital Ruler" (Auto-Sync) <span class="logic-tag">Scaling</span></h2>
+    <div class="info-card">
+        <p><b>The Concept:</b> High-resolution phones make everything look 3 times bigger than the original design. If we compare them as they are, the measurements will be wrong.</p>
+
+        <div class="calculation-area">
+            <span class="tip-badge">HOW WE CALCULATE SCALE:</span><br>
+            If the <b>Figma Design</b> is 375 pixels wide, but your <b>Phone Screenshot</b> is 1125 pixels wide:<br>
+            <b>Calculation:</b> 375 ÷ 1125 = <b>0.33</b><br>
+            <b>Result:</b> The tool "shrinks" the app by 0.33x so it perfectly matches the Figma design.
+        </div>
+        <p><b>Your Action:</b> Always upload images and click <b>"Match Figma Size"</b> first to calibrate your ruler.</p>
+    </div>
+
+    <h2>2. Measuring Elements <span class="logic-tag">Properties</span></h2>
+    <div class="info-card">
+        <p>When you click an element (like a button or icon), the tool finds the "Real World" size and translates it into the "Design Size" you need.</p>
+
+        <div class="calculation-area">
+            <span class="tip-badge">HOW WE CALCULATE SIZE:</span><br>
+            Imagine you click a button that is physically 154 pixels on your screen. If your Scale is 0.95x:<br>
+            <b>Calculation:</b> 154 (Screen Size) × 0.95 (Scale) = <b>146.3 pixels</b><br>
+            <b>Result:</b> The tool shows <b>146px</b>. If Figma says 150px, the developer made it <b>4px too small</b>!
+        </div>
+    </div>
+
+
+    <h2>3. Padding & Spacing <span class="logic-tag">Internal Space</span></h2>
+    <div class="info-card">
+        <p><b>Padding</b> is the "breathing room" inside an element (the gap between the text and the button's edge).</p>
+
+        <div class="example-box">
+            <b>Example:</b><br>
+            If the text "Submit" is touching the edges of the button, the padding is <b>Zero</b> (This is a bug!). <br>
+            Standard Figma designs usually have 12px or 16px of padding to keep things looking clean.
+        </div>
+        <p><b>Tester Tip:</b> If the green lines don't automatically find the edge, grab the <b>nicks (handles)</b> and drag them to fit. The padding numbers will update instantly.</p>
+    </div>
+
+
+    <h2>4. The "Ghost" Method <span class="logic-tag">Transparency</span></h2>
+    <div class="info-card">
+        <p>Use the <b>Opacity Slider</b> set to 50%. This puts the App Build on top of the Figma Design like a ghost.</p>
+        <ul>
+            <li><b>Good:</b> The text and icons overlap perfectly.</li>
+            <li><b>Bad:</b> You see "double vision" (two icons next to each other). This means the developer put the icon in the wrong position.</li>
+        </ul>
+    </div>
+
+    <hr style="margin: 40px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <h2>🚀 Step-by-Step Testing Checklist</h2>
+    <ul class="checklist">
+        <li><b>Upload:</b> Put your Figma design and App screenshot into the boxes.</li>
+        <li><b>Crop:</b> Use the cropper to remove the phone's clock and battery bar.</li>
+        <li><b>Sync:</b> Click <i>Match Figma Size</i> to calibrate the math.</li>
+        <li><b>Ghost Check:</b> Slide Opacity to 50%. Check for "double vision" alignment issues.</li>
+        <li><b>Measure:</b> Click 5-10 main buttons/images. If the Width or Height is even 1 pixel different from Figma, report it!</li>
+        <li><b>Red Proof:</b> Look at the <i>Red Proof (Diff Image)</i>. Large red areas show where the developer missed something entirely.</li>
+    </ul>
+
+    <a href="javascript:window.close();" class="back-link">← Got it! Back to the Tool</a>
+</div>
+
+</body>
+</html>
