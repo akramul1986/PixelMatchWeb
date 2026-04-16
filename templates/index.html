@@ -29,6 +29,28 @@
         .upload-box { border: 2px dashed #cbd5e0; padding: 25px; text-align: center; border-radius: 12px; }
 
         button.main-verify { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 18px; font-weight: 700; transition: 0.2s; }
+        button:disabled { background: #cbd5e0 !important; cursor: not-allowed; }
+
+        /* Professional Loader Overlay */
+        #globalLoader {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid var(--border);
+            border-top: 5px solid var(--figma-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* Crop Workspace */
         #cropSection { display: none; border: 2px solid var(--figma-blue); padding: 20px; border-radius: 16px; background: #fff; margin-bottom: 30px; }
@@ -74,11 +96,16 @@
 </head>
 <body>
 
+<div id="globalLoader">
+    <div class="spinner"></div>
+    <p style="margin-top: 15px; font-weight: bold; color: var(--figma-blue);">Analyzing Pixels... Please wait</p>
+</div>
+
 <div class="container">
     <div class="top-nav">
-    <a href="/guide" target="_blank" style="margin-right: 20px; color: var(--primary); text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid var(--primary); padding: 5px 15px; border-radius: 20px;">📖 Testing Guide</a>
-    <div class="user-badge"><span>👋 {{ session.get('user_email', 'User') }}</span> | <a href="/logout">Logout</a></div>
-</div>
+        <a href="/guide" target="_blank" style="margin-right: 20px; color: var(--primary); text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid var(--primary); padding: 5px 15px; border-radius: 20px;">📖 Testing Guide</a>
+        <div class="user-badge"><span>👋 {{ session.get('user_email', 'User') }}</span> | <a href="/logout">Logout</a></div>
+    </div>
 
     <div class="header">
         <h1>🔍 UI PixelMatch Verifier Pro</h1>
@@ -101,8 +128,8 @@
         </div>
         <div class="cropper-wrapper"><img id="cropTarget"></div>
         <div style="margin-top: 20px; display: flex; justify-content: space-between;">
-            <button onclick="location.reload()" style="padding:10px 20px;">Cancel</button>
-            <button onclick="finalizePipeline()" style="background:var(--success); color:white; padding:10px 40px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Verify Cropped Image</button>
+            <button onclick="location.reload()" style="padding:10px 20px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">Cancel</button>
+            <button id="verifyCropBtn" onclick="finalizePipeline()" style="background:var(--success); color:white; padding:10px 40px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Verify Cropped Image</button>
         </div>
     </div>
 
@@ -181,13 +208,22 @@ const canvas = document.getElementById('measureCanvas');
 const ctx = canvas.getContext('2d');
 const img = document.getElementById('inspectorImg');
 const workspace = document.querySelector('.image-workspace');
-const MARK_COLOR = '#18A0FB'; // Official Figma Blue for cleaner look
-const HANDLE_SIZE = 6; // Corner nick size
+const MARK_COLOR = '#18A0FB';
+const HANDLE_SIZE = 6;
 
 let cropper, activeBox, lastInteractionPoint, isResizing, currentHandle;
 let currentScale = 1.0, fWidth = 0, aWidth = 0, fRatio = 0;
 
-// --- PIPELINE LOGIC ---
+// Helper to show/hide the professional loader
+function showLoader(show) {
+    const loader = document.getElementById('globalLoader');
+    const btn = document.getElementById('verifyCropBtn');
+    loader.style.display = show ? 'flex' : 'none';
+    btn.disabled = show;
+    btn.innerText = show ? "Processing..." : "Verify Cropped Image";
+}
+
+// --- PIPELINE LOGIC (UPLOADS) ---
 function startInProcessCrop() {
     const fFile = document.getElementById('figmaImg').files[0];
     const aFile = document.getElementById('appImg').files[0];
@@ -229,30 +265,42 @@ function restoreRatio() {
 }
 
 async function finalizePipeline() {
+    if (!cropper) return;
+    showLoader(true); // Trigger Loader immediately
+
     const croppedCanvas = cropper.getCroppedCanvas();
     croppedCanvas.toBlob(async (blob) => {
-        const croppedUrl = URL.createObjectURL(blob);
-        img.src = croppedUrl;
-        document.getElementById('appOverlay').src = croppedUrl;
-        document.getElementById('cropSection').style.display = 'none';
+        try {
+            const croppedUrl = URL.createObjectURL(blob);
+            img.src = croppedUrl;
+            document.getElementById('appOverlay').src = croppedUrl;
+            document.getElementById('cropSection').style.display = 'none';
 
-        const fd = new FormData();
-        const fBlob = await fetch(document.getElementById('figmaBg').src).then(r => r.blob());
-        fd.append('figma', fBlob, 'figma.png');
-        fd.append('app', blob, 'app.png');
+            const fd = new FormData();
+            const fBlob = await fetch(document.getElementById('figmaBg').src).then(r => r.blob());
+            fd.append('figma', fBlob, 'figma.png');
+            fd.append('app', blob, 'app.png');
 
-        const res = await fetch('/verify', { method: 'POST', body: fd });
-        const data = await res.json();
+            const res = await fetch('/verify', { method: 'POST', body: fd });
+            if (!res.ok) throw new Error('Backend failed to process images');
 
-        document.getElementById('resultArea').style.display = 'block';
-        document.getElementById('txtCategory').innerText = data.category;
-        document.getElementById('txtFigma').innerText = data.figma_size;
-        document.getElementById('txtApp').innerText = data.app_size;
-        document.getElementById('txtPercent').innerText = data.mismatch_count + " px";
-        document.getElementById('diffImage').src = data.diff_url;
+            const data = await res.json();
 
-        aWidth = croppedCanvas.width;
-        document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('resultArea').style.display = 'block';
+            document.getElementById('txtCategory').innerText = data.category || "Verification Result";
+            document.getElementById('txtFigma').innerText = data.figma_size;
+            document.getElementById('txtApp').innerText = data.app_size;
+            document.getElementById('txtPercent').innerText = data.mismatch_count + " px";
+            document.getElementById('diffImage').src = data.diff_url;
+
+            aWidth = croppedCanvas.width;
+            document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+        } catch (err) {
+            console.error("Verification Error:", err);
+            alert("The server encountered an error. Please check your internet connection or deployment logs on Render.");
+        } finally {
+            showLoader(false); // Remove loader regardless of success or failure
+        }
     }, 'image/png');
 }
 
@@ -363,26 +411,19 @@ function drawFrame(m) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if(activeBox) {
-        // Figma Style: Pure Line Selection
         ctx.strokeStyle = MARK_COLOR;
         ctx.lineWidth = 1;
-        ctx.setLineDash([]);
         ctx.strokeRect(activeBox.x, activeBox.y, activeBox.w, activeBox.h);
 
-        // Figma Style: Small White squares with Blue borders at corners (Nicks)
         ctx.fillStyle = "white";
         ctx.strokeStyle = MARK_COLOR;
         ctx.lineWidth = 1.5;
 
         const pts = [
-            [activeBox.x, activeBox.y], // TL
-            [activeBox.x + activeBox.w, activeBox.y], // TR
-            [activeBox.x, activeBox.y + activeBox.h], // BL
-            [activeBox.x + activeBox.w, activeBox.y + activeBox.h], // BR
-            [activeBox.x + activeBox.w/2, activeBox.y], // TM
-            [activeBox.x + activeBox.w/2, activeBox.y + activeBox.h], // BM
-            [activeBox.x, activeBox.y + activeBox.h/2], // LM
-            [activeBox.x + activeBox.w, activeBox.y + activeBox.h/2]  // RM
+            [activeBox.x, activeBox.y], [activeBox.x + activeBox.w, activeBox.y],
+            [activeBox.x, activeBox.y + activeBox.h], [activeBox.x + activeBox.w, activeBox.y + activeBox.h],
+            [activeBox.x + activeBox.w/2, activeBox.y], [activeBox.x + activeBox.w/2, activeBox.y + activeBox.h],
+            [activeBox.x, activeBox.y + activeBox.h/2], [activeBox.x + activeBox.w, activeBox.y + activeBox.h/2]
         ];
 
         pts.forEach(p => {
@@ -390,14 +431,11 @@ function drawFrame(m) {
             ctx.strokeRect(p[0] - HANDLE_SIZE/2, p[1] - HANDLE_SIZE/2, HANDLE_SIZE, HANDLE_SIZE);
         });
 
-        // Scaled dimension label
         const sc = img.naturalWidth / img.clientWidth;
         ctx.fillStyle = MARK_COLOR;
         ctx.font = '600 11px Inter';
         const label = `${Math.round(activeBox.w*sc*currentScale)} × ${Math.round(activeBox.h*sc*currentScale)}`;
         const textW = ctx.measureText(label).width;
-
-        // Label Background
         ctx.fillStyle = MARK_COLOR;
         ctx.fillRect(activeBox.x + activeBox.w/2 - (textW+10)/2, activeBox.y + activeBox.h + 5, textW+10, 18);
         ctx.fillStyle = "white";
