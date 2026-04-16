@@ -3,10 +3,14 @@ from datetime import timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 from comparator import ImageComparator  # Keeping your existing comparator
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 
-# --- 1. SECURITY & CONFIG ---
+# 1. Attach the ProxyFix AFTER the app is created
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# --- 2. SECURITY & CONFIG ---
 app.secret_key = "portonics_secret_key_2026"
 
 # REQUIRED for IP-based OAuth testing
@@ -38,7 +42,6 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-
 # --- 4. NAVIGATION & AUTH ROUTES ---
 
 @app.route('/')
@@ -67,7 +70,7 @@ def google_auth():
 
     # PRODUCTION TESTING (New Portonics Domain)
     else:
-        redirect_uri = "http://uiverifier-qa.portonics.com/auth/callback"
+        redirect_uri = "https://uiverifier-qa.portonics.com/auth/callback"
 
     print(f"DEBUG: Final Redirect URI -> {redirect_uri}")
     return google.authorize_redirect(redirect_uri)
