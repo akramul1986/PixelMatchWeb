@@ -89,6 +89,20 @@
         </ul>
     </div>
 
+    <h2>5. How does Edge Sensitivity work? <span class="logic-tag">Transparency</span></h2>
+    <div class="info-card">
+        <p>Think of <b>Edge Sensitivity</b> as a "Color Contrast Filter." It tells the tool how much the color must change before it decides "this is the end of the button."</p>
+        <ul>
+            <li><b>Low Sensitivity (like your 12):</b> The tool is very "lax." It ignores subtle color changes (like soft shadows or glow effects) and looks for very strong, high-contrast borders.</li>
+            <li><b>High Sensitivity (40+):</b> The tool is very "strict." Even a tiny change in the blue shade (like a gradient or a button shadow) will cause the tool to stop and draw a line there.</li>
+        </ul>
+        <p>Real-World Example:</p>
+        <ul>
+            <li><b>If you have a flat white button on a black background:</b> You can use <b>Low Sensitivity</b> because the "edge" is very obvious.</li>
+            <li><b>If you have a light blue button on a dark blue background:</b> You need <b>High Sensitivity</b> so the tool can "see" the slight difference between the two blues.</li>
+        </ul>
+    </div>
+
     <hr style="margin: 40px 0; border: 0; border-top: 1px solid var(--border);">
 
     <h2>🚀 Step-by-Step Testing Checklist</h2>
