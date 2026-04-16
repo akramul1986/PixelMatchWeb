@@ -62,15 +62,19 @@ def login():
 def google_auth():
     host = request.host
 
-    # LOCAL TESTING (Ensures exact match with Google Console)
-    if "localhost" in host:
-        redirect_uri = "http://localhost:8088/auth/callback"
-    elif "127.0.0.1" in host:
-        redirect_uri = "http://127.0.0.1:8088/auth/callback"
+    # 1. Check if DevOps provided a specific Redirect URI via Environment Variable
+    # This matches the 'GOOGLE_REDIRECT_URI' set by your ops team
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
 
-    # PRODUCTION TESTING (New Portonics Domain)
-    else:
-        redirect_uri = "https://uiverifier-qa.portonics.com/auth/callback"
+    # 2. If NO environment variable is found, fallback to your manual logic
+    if not redirect_uri:
+        if "localhost" in host:
+            redirect_uri = "http://localhost:8088/auth/callback"
+        elif "127.0.0.1" in host:
+            redirect_uri = "http://127.0.0.1:8088/auth/callback"
+        else:
+            # Default fallback for production
+            redirect_uri = "https://uiverifier-qa.portonics.com/auth/callback"
 
     print(f"DEBUG: Final Redirect URI -> {redirect_uri}")
     return google.authorize_redirect(redirect_uri)
