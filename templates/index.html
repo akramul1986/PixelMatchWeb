@@ -103,14 +103,26 @@
 
 <div class="container">
     <div class="top-nav">
-        <a href="/guide" target="_blank" style="margin-right: 20px; color: var(--primary); text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid var(--primary); padding: 5px 15px; border-radius: 20px;">📖 Testing Guide</a>
-        <div class="user-badge"><span>👋 {{ session.get('user_email', 'User') }}</span> | <a href="/logout">Logout</a></div>
+<!--<a href="/testcases" style="margin-right: 15px; color: var(&#45;&#45;success); text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid var(&#45;&#45;success); padding: 5px 15px; border-radius: 20px;">📄 CSV Rearranger</a>-->
+    <a href="/guide" target="_blank" style="margin-right: 20px; color: var(--primary); text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid var(--primary); padding: 5px 15px; border-radius: 20px;">📖 Testing Guide</a>
+    <div class="user-badge"><span>👋 {{ session.get('user_email', 'User') }}</span> | <a href="/logout">Logout</a></div>
     </div>
 
     <div class="header">
         <h1>🔍 UI PixelMatch Verifier Pro</h1>
-        <p>Unified In-Memory Pipeline: Crop, Scale, and Figma-Style Inspect</p>
+        <p>Unified In-Memory Pipeline: Crop, Scale, and Figma-Style Inspect & Test Case Management</p>
     </div>
+
+    <div class="card" style="background: #f0fff4; border: 1px solid #c6f6d5; padding: 20px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span style="font-size: 28px;">🔄</span>
+        <div>
+            <h4 style="margin: 0; color: #276749;">BrowserStack CSV Rearranger</h4>
+            <p style="margin: 0; font-size: 12px; color: #38a169;">Keep only essential columns for client-facing reports.</p>
+        </div>
+    </div>
+    <a href="/testcases" style="background: var(--success); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px;">Open Tool</a>
+</div>
 
     <div class="card">
         <div class="upload-grid">

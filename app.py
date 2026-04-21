@@ -1,38 +1,40 @@
 import os
+import io
+import pandas as pd
 from datetime import timedelta
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from authlib.integrations.flask_client import OAuth
-from comparator import ImageComparator  # Keeping your existing comparator
+from comparator import ImageComparator
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 
-# 1. Attach the ProxyFix AFTER the app is created
+# --- 1. DOCKER & REVERSE PROXY CONFIG ---
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # --- 2. SECURITY & CONFIG ---
 app.secret_key = "portonics_secret_key_2026"
-
-# REQUIRED for IP-based OAuth testing
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-# 32MB Upload limit for high-res images
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 
+# Fix for session consistency
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# --- 2. SESSION IDLE TIMEOUT ---
+# --- 3. SESSION MANAGEMENT ---
 @app.before_request
 def manage_session():
     session.permanent = True
-    # If the user is idle for 30 minutes, they are logged out
     app.permanent_session_lifetime = timedelta(minutes=30)
 
-    # Apply domain cookie only when hosted on the internal server
-    if "uiverifier-qa" in request.host:
+    host = request.host
+    if "uiverifier-qa" in host:
         app.config['SESSION_COOKIE_DOMAIN'] = 'uiverifier-qa.portonics.com'
+    else:
+        app.config['SESSION_COOKIE_DOMAIN'] = None
 
 
-# --- 3. GOOGLE OAUTH SETUP ---
+# --- 4. GOOGLE OAUTH SETUP ---
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
@@ -42,7 +44,8 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# --- 4. NAVIGATION & AUTH ROUTES ---
+
+# --- 5. NAVIGATION & AUTH ROUTES ---
 
 @app.route('/')
 def index():
@@ -61,22 +64,11 @@ def login():
 @app.route('/auth/google')
 def google_auth():
     host = request.host
+    if "localhost" in host or "127.0.0.1" in host:
+        redirect_uri = "http://localhost:84/auth/callback" if ":84" in host else "http://localhost:8088/auth/callback"
+    else:
+        redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "https://uiverifier-qa.portonics.com/auth/callback")
 
-    # 1. Check if DevOps provided a specific Redirect URI via Environment Variable
-    # This matches the 'GOOGLE_REDIRECT_URI' set by your ops team
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
-
-    # 2. If NO environment variable is found, fallback to your manual logic
-    if not redirect_uri:
-        if "localhost" in host:
-            redirect_uri = "http://localhost:8088/auth/callback"
-        elif "127.0.0.1" in host:
-            redirect_uri = "http://127.0.0.1:8088/auth/callback"
-        else:
-            # Default fallback for production
-            redirect_uri = "https://uiverifier-qa.portonics.com/auth/callback"
-
-    print(f"DEBUG: Final Redirect URI -> {redirect_uri}")
     return google.authorize_redirect(redirect_uri)
 
 
@@ -86,13 +78,17 @@ def auth_callback():
         token = google.authorize_access_token()
         user_info = google.get('https://openidconnect.googleapis.com/v1/userinfo').json()
 
-        # Security check: Ensure the email is from portonics.com
         if not user_info.get('email', '').endswith('@portonics.com'):
             session.clear()
             return "<h1>Access Denied</h1><p>Please use your Portonics email.</p>", 403
 
+        # CRITICAL FIX FOR DOUBLE AUTH:
+        # Clear existing session, set data, and explicitly save before redirect
+        session.clear()
+        session.permanent = True
         session['user_email'] = user_info['email']
         session['user_name'] = user_info.get('name', 'Tester')
+        session.modified = True
 
         return redirect(url_for('index'))
     except Exception as e:
@@ -106,7 +102,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- 5. CORE FUNCTIONAL ROUTES ---
+# --- 6. CORE LOGIC (UI VERIFIER) ---
 
 @app.route('/verify', methods=['POST'])
 def verify():
@@ -116,12 +112,89 @@ def verify():
     try:
         figma_file = request.files['figma']
         app_file = request.files['app']
-        # Keeping your existing ImageComparator logic
         result = ImageComparator.compare(figma_file, app_file)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# --- 7. TEST CASE REARRANGER LOGIC ---
+
+@app.route('/testcases', methods=['GET', 'POST'])
+def testcases_module():
+    if 'user_email' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        file = request.files.get('csv_file')
+        if not file or file.filename == '':
+            return "No file selected", 400
+
+        filename = file.filename.lower()
+        column_mapping = {
+            'Test Case ID': 'Test Case Id',
+            'Title': 'Title',
+            'Owner': 'Owner',
+            'Description': 'Description',
+            'Preconditions': 'Preconditions',
+            'Steps': 'Steps',
+            'Expected Result': 'Expected Result'
+        }
+
+        try:
+            # Create a buffer from the uploaded file to avoid read errors
+            file_stream = io.BytesIO(file.read())
+            output = io.BytesIO()
+
+            # --- CASE 1: MULTI-SHEET EXCEL (.xlsx) ---
+            if filename.endswith('.xlsx'):
+                # Use engine='openpyxl' for reading
+                excel_data = pd.read_excel(file_stream, sheet_name=None, engine='openpyxl')
+
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    for sheet_name, df in excel_data.items():
+                        existing_cols = [col for col in column_mapping.keys() if col in df.columns]
+
+                        if existing_cols:
+                            processed_df = df[existing_cols].rename(columns=column_mapping)
+                            processed_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                        else:
+                            # If no columns match, keep the sheet as is or skip
+                            df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+                output.seek(0)
+                return send_file(
+                    output,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    as_attachment=True,
+                    download_name=f"Cleaned_{file.filename}"
+                )
+
+            # --- CASE 2: SINGLE-SHEET CSV ---
+            elif filename.endswith('.csv'):
+                file_stream.seek(0)  # Reset stream for CSV read
+                df = pd.read_csv(file_stream)
+                existing_cols = [col for col in column_mapping.keys() if col in df.columns]
+                processed_df = df[existing_cols].rename(columns=column_mapping)
+
+                output_str = io.StringIO()
+                processed_df.to_csv(output_str, index=False)
+
+                output_bytes = io.BytesIO(output_str.getvalue().encode('utf-8'))
+                return send_file(
+                    output_bytes,
+                    mimetype='text/csv',
+                    as_attachment=True,
+                    download_name=f"Cleaned_{file.filename}"
+                )
+
+            else:
+                return "Unsupported file format. Please upload .csv or .xlsx", 400
+
+        except Exception as e:
+            return f"Processing Error: {str(e)}", 500
+
+    return render_template('testcases.html')
 
 @app.route('/guide')
 def show_guide():
@@ -131,4 +204,5 @@ def show_guide():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8088, debug=False)
+    port = int(os.environ.get("PORT", 8088))
+    app.run(host='0.0.0.0', port=port, debug=True)
